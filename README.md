@@ -16,14 +16,14 @@ OpenAI model,Python, Streamlit
 - Retrieve questions from workout logs
 - Ask questions with reply from a custom persona
 
-## User Guide
-
-To be added
-
-# Requirements:
+## Requirements:
 
 - IDE
 - OPEN AI API Key
+
+## User Guide
+
+To be added
 
 ## User/Technical Flow Chart
 
