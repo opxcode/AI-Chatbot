@@ -13,22 +13,42 @@ from langchain_community.vectorstores import DocArrayInMemorySearch
 from langchain.tools.retriever import Tool
 from langchain.agents import AgentExecutor, create_openai_tools_agent
 from datetime import date,timedelta
+import streamlit as st
+
+#Streamlit
+st.set_page_config(page_title="Personal Assistant", page_icon= "🤖")
+st.title("Whats up?")
 
 # Access the API key
 load_dotenv()
 try:
     api_key = os.getenv("api_key")
-    if api_key == None:
-        api_key = input("Enter your OpenAI API Key:\n")
 except:
     # if there is no environment file
-    api_key = input("Enter your OpenAI API Key:\n")
+    api_key = None
+
+if "chat_history" not in st.session_state:
+    st.session_state['chat_history'] = []
+user_prompt = st.chat_input("Type Here")
+with st.sidebar:
+    openai_api_key = st.text_input("OpenAI API Key",value=api_key, key="chatbot_api_key", type="password")
+    "[Get an OpenAI API key](https://platform.openai.com/account/api-keys)"
+    directory = st.text_input("Directory for context files",value = "Context",help = "default directory is Context\n Type to replace")
+    logfile = st.text_input("File for update",value = "Context/TrainingLog.txt",help = "default directory is Context/TrainingLog.txt\n Type to replace")
+    "[Readme](https://github.com/opxcode/AI-Chatbot)"
+
+#API key input overrides environment
+api_key = openai_api_key
+  
+if not api_key:
+    st.info("Please add your OpenAI API key to continue.")
+    st.stop()
 
 #output_parser = StrOutputParser()
-llm = ChatOpenAI(api_key = api_key,model="gpt-3.5-turbo-1106",temperature= 0.7,top_p=1)
+llm = ChatOpenAI(api_key = api_key,model="gpt-3.5-turbo-1106",temperature= 0.7)
 
 #Context file
-loader = DirectoryLoader('./Context', glob="**/*.txt",loader_cls=TextLoader)
+loader = DirectoryLoader(directory, glob="**/*.txt",loader_cls=TextLoader)
 docs = loader.load()
 #Split text into chunks
 text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=20)
@@ -143,7 +163,7 @@ def traininglog_create(question):
         data (str): The data to be written to the file.
     """
     data = result.content
-    filename = "./Context/TrainingLog.txt"
+    filename = logfile
     f = open(filename, "a")
     f.write("\n"+data)
     f.close()
@@ -158,35 +178,35 @@ tools = [Base_chat,RAG_tool,AddEntry_tool]
 #Agent
 agent_prompt = ChatPromptTemplate.from_messages(
     [
-        ("system","You are a very powerful and friendly assistant."),
+        ("system","You are a very powerful and friendly assistant. But if the user ask who are you, say you a black belt bjj coach."),
         ("user", "{question}" ),
         MessagesPlaceholder(variable_name="agent_scratchpad"),
     ]
 )
 agent = create_openai_tools_agent(llm, tools, agent_prompt)
-agent_executor = AgentExecutor(agent=agent, tools=tools, verbose = True,max_iterations=3)
+agent_executor = AgentExecutor(agent=agent, tools=tools, verbose = True, max_iterations=3)
 
-def initiate_chat():
-    while True:
-        question = input("How can i help? Type exit to end session.\n")
-        datequery = calendar(question)
-        query = f"{question} {datequery}"
-        if question.lower() == "exit":
-            print("Bye!")
-            break
-        with get_openai_callback() as cb:
-            result = agent_executor.invoke({"question": query})
-            #Check token used:
-            print("--------------------------------------")
-            print(f"Total Tokens: {cb.total_tokens}")
-            print(f"Prompt Tokens: {cb.prompt_tokens}")
-            print(f"Completion Tokens: {cb.completion_tokens}")
-            print(f"Total Cost (USD): ${cb.total_cost}")
-            print("--------------------------------------")
-            print(result["output"])
-    
-initiate_chat()
 
+if user_prompt is not None and user_prompt != "":
+    try:
+        if api_key != None:
+            with get_openai_callback() as cb:
+                datequery = calendar(user_prompt)
+                query = user_prompt+" " + datequery
+                result = agent_executor.invoke({"question": query})
+                #Check token used:
+                nl = "\n"
+                token_usage = f"Total Tokens: {cb.total_tokens}{nl}Total Cost (USD): ${cb.total_cost}"
+            st.session_state.chat_history.append({"user":user_prompt,"assistant":result["output"],"token_usage":token_usage})
+        else:
+            st.session_state.chat_history.append({"user":user_prompt,"assistant":"Please input API key or setup in environment","token_usage":""})
+    except:
+        st.session_state.chat_history.append({"user":user_prompt,"assistant":"Error","token_usage":""})
+
+for msg in st.session_state.chat_history:
+   st.chat_message("token_usage").write(msg["token_usage"])
+   st.chat_message("user").write(msg["user"])
+   st.chat_message("assistant").write(msg["assistant"])
 
 
 

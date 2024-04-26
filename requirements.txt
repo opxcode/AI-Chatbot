@@ -5,3 +5,5 @@ python-dotenv
 langchain[docarray]
 --upgrade --quiet  "docarray"
 datetime
+streamlit
+langchainhub
