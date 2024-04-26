@@ -17,8 +17,20 @@ import streamlit as st
 
 #Streamlit
 st.set_page_config(page_title="Personal Assistant", page_icon= "🤖")
-st.title("Whats up?")
-
+st.markdown("As your personal coach, I can answer questions on your training needs")
+example1 = ''':blue[To add entry into logfile, add entry keyword required]  
+[Example]  
+add entry, On 24 April, I did....  
+add entry: Today's training felt good....  
+'''
+example2 = ''':blue[To ask question from training logfile]  
+[Example]  
+What did I do on 24 Apr  
+How was training last week?  
+'''
+st.caption(example1)
+st.caption(example2)
+st.divider()
 # Access the API key
 load_dotenv()
 try:
@@ -30,12 +42,15 @@ except:
 if "chat_history" not in st.session_state:
     st.session_state['chat_history'] = []
 user_prompt = st.chat_input("Type Here")
+
 with st.sidebar:
     openai_api_key = st.text_input("OpenAI API Key",value=api_key, key="chatbot_api_key", type="password")
     "[Get an OpenAI API key](https://platform.openai.com/account/api-keys)"
     directory = st.text_input("Directory for context files",value = "Context",help = "default directory is Context\n Type to replace")
     logfile = st.text_input("File for update",value = "Context/TrainingLog.txt",help = "default directory is Context/TrainingLog.txt\n Type to replace")
     "[Readme](https://github.com/opxcode/AI-Chatbot)"
+    speakingtone = st.text_input("set speaking style",value = "hip-hop")
+    sport = st.text_input("set sports specialisation",value = "brazillian jiu-jitsu")
 
 #API key input overrides environment
 api_key = openai_api_key
@@ -65,7 +80,7 @@ prompt_general = ChatPromptTemplate.from_messages([
     ("user", """ {question}""")
     ])
 prompt_context = ChatPromptTemplate.from_messages([
-    ("user", """Answer the question based on the context.
+    ("user", """Answer the question based on the context. 
     Context: {context}
     Question: {question}""")
     ])
@@ -177,8 +192,8 @@ tools = [Base_chat,RAG_tool,AddEntry_tool]
 
 #Agent
 agent_prompt = ChatPromptTemplate.from_messages(
-    [
-        ("system","You are a very powerful and friendly assistant. But if the user ask who are you, say you a black belt bjj coach."),
+    [ #set custom persona
+        ("system","You are a very powerful assistant and a {sport} expert. You speak in {speakingtone} style. If the user ask who are you, say you a renowned {sport} coach who trains atheletes."),
         ("user", "{question}" ),
         MessagesPlaceholder(variable_name="agent_scratchpad"),
     ]
@@ -186,21 +201,24 @@ agent_prompt = ChatPromptTemplate.from_messages(
 agent = create_openai_tools_agent(llm, tools, agent_prompt)
 agent_executor = AgentExecutor(agent=agent, tools=tools, verbose = True, max_iterations=3)
 
-
 if user_prompt is not None and user_prompt != "":
     try:
         if api_key != None:
             with get_openai_callback() as cb:
                 datequery = calendar(user_prompt)
-                query = user_prompt+" " + datequery
-                result = agent_executor.invoke({"question": query})
+                if datequery is None:
+                    query = user_prompt
+                else:
+                    query = user_prompt+" " + datequery
+                result = agent_executor.invoke({"question": query,"speakingtone":speakingtone,"sport":sport})
                 #Check token used:
                 nl = "\n"
-                token_usage = f"Total Tokens: {cb.total_tokens}{nl}Total Cost (USD): ${cb.total_cost}"
+                token_usage = f"Total Tokens: {cb.total_tokens}{nl}Total Cost (USD): ${cb.total_cost:.8f}"
             st.session_state.chat_history.append({"user":user_prompt,"assistant":result["output"],"token_usage":token_usage})
         else:
             st.session_state.chat_history.append({"user":user_prompt,"assistant":"Please input API key or setup in environment","token_usage":""})
-    except:
+    except Exception as e:
+        print(e)
         st.session_state.chat_history.append({"user":user_prompt,"assistant":"Error","token_usage":""})
 
 for msg in st.session_state.chat_history:
