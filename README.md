@@ -30,9 +30,7 @@ OpenAI model,Python, Streamlit
 3. In VS Code terminal:
    Create virtual environment: python3 -m venv .venv<br>
    Install required dependencies: pip install -r requirements.txt<br>
-   Optional:<br>
-   Create .env file with API Key<br>
-
+   Optional: Create .env file with API Key
 4. To run app locally:<br>
    (In Terminal): streamlit run Main.py<br>
 
