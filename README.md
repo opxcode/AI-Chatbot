@@ -1,6 +1,6 @@
 ## About
 
-Personalised AI trainer for BJJ
+Personalised AI sports trainer
 
 ## Demo
 
@@ -11,10 +11,12 @@ Personalised AI trainer for BJJ
 OpenAI model,Python, Streamlit
 
 ## Features
-
+- General ask and answer
 - Record workout entry
-- Retrieve questions from workout logs
-- Ask questions with reply from a custom persona
+- Answer questions from workout logs, training related data
+- Custom persona:
+   * sports specialty
+   * speaking style
 
 ## Requirements:
 
