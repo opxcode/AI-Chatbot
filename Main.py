@@ -44,6 +44,10 @@ if "chat_history" not in st.session_state:
 user_prompt = st.chat_input("Type Here")
 
 with st.sidebar:
+    try:
+        st.image("Img/BrandName.png")
+    except:
+       st.subheader("ChatBot")
     openai_api_key = st.text_input("OpenAI API Key",value=api_key, key="chatbot_api_key", type="password")
     "[Get an OpenAI API key](https://platform.openai.com/account/api-keys)"
     directory = st.text_input("Directory for context files",value = "Context",help = "default directory is Context\n Type to replace")
