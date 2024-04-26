@@ -23,17 +23,18 @@ OpenAI model,Python, Streamlit
 
 ## User Guide
 
-To run locally, download repository in a folder
-open VScode from folder
-In VS Code terminal:
-Create virtual environment: python3 -m venv .venv
-Install required dependencies: pip install -r requirements.txt
+### To run locally, download repository in a folder
 
-Optional:
-Create .env file with API Key
+open VScode from folder<br>
+In VS Code terminal:<br>
+Create virtual environment: python3 -m venv .venv<br>
+Install required dependencies: pip install -r requirements.txt<br>
+<br>
+Optional:<br>
+Create .env file with API Key<br>
 
-To run app locally:
-(In Terminal): streamlit run Main.py
+To run app locally:<br>
+(In Terminal): streamlit run Main.py<br>
 
 ---- Video to be uploaded ----
 
