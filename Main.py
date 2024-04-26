@@ -2,7 +2,6 @@ from dotenv import load_dotenv
 import os
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate,MessagesPlaceholder
-from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
 from langchain_community.callbacks import get_openai_callback
 from langchain_community.document_loaders import TextLoader
@@ -63,10 +62,9 @@ if not api_key:
     st.info("Please add your OpenAI API key to continue.")
     st.stop()
 
-#output_parser = StrOutputParser()
 llm = ChatOpenAI(api_key = api_key,model="gpt-3.5-turbo-1106",temperature= 0.7)
 
-#Context file
+#Context file supports only text files
 loader = DirectoryLoader(directory, glob="**/*.txt",loader_cls=TextLoader)
 docs = loader.load()
 #Split text into chunks
