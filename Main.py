@@ -226,7 +226,7 @@ if user_prompt is not None and user_prompt != "":
         st.session_state.chat_history.append({"user":user_prompt,"assistant":"Error","token_usage":""})
 
 for msg in st.session_state.chat_history:
-   st.chat_message("token_usage").write(msg["token_usage"])
+   st.chat_message(name = "token_usage", avatar = "💎" ).write(msg["token_usage"])
    st.chat_message("user").write(msg["user"])
    st.chat_message("assistant").write(msg["assistant"])
 
