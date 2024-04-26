@@ -8,7 +8,7 @@ Personalised AI sports trainer
 
 ## Built With
 
-OpenAI model,Python, Streamlit
+OpenAI llm, Python, Streamlit
 
 ## Features
 - General ask and answer
