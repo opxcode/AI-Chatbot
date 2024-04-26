@@ -26,7 +26,7 @@ OpenAI model,Python, Streamlit
 #### To run locally
 
 1. Download repository in a folder
-2. open VScode from folder
+2. Open VScode from folder
 3. In VS Code terminal:
    Create virtual environment: python3 -m venv .venv<br>
    Install required dependencies: pip install -r requirements.txt<br>
