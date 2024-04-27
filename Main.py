@@ -62,7 +62,7 @@ if not api_key:
     st.info("Please add your OpenAI API key to continue.")
     st.stop()
 
-llm = ChatOpenAI(api_key = api_key,model="gpt-3.5-turbo-1106",temperature= 0.7)
+llm = ChatOpenAI(api_key = api_key,model="gpt-3.5-turbo",temperature= 0.7)
 
 #Context file supports only text files
 loader = DirectoryLoader(directory, glob="**/*.txt",loader_cls=TextLoader)
@@ -88,7 +88,7 @@ prompt_context = ChatPromptTemplate.from_messages([
     ])
 
 prompt_add = ChatPromptTemplate.from_messages([
-    ("user", """From the given text, input the date in the format "DD MMM" followed by bullet points of what was done
+    ("user", """From the given text, input the date in the format "DD MMM YYYY" followed by bullet points of what was done
     Text: {question}""")
     ])
 #Chain
@@ -122,27 +122,19 @@ def calendar(question):
         yesterday = now - timedelta(days=1)
         now = yesterday.strftime("%d %b %Y")
         datequery = f"yesterday refer to {now}"
-    elif "last week" in question.lower():
-        last_monday = now - timedelta(days=now.weekday())
+    elif "last week" in question.lower() or "previous week" in question.lower():
+        last_monday = now - timedelta(days=now.weekday()) - timedelta(days=7)
         last_sunday = last_monday + timedelta(days=6)
         start_date = last_monday.strftime("%d %b %Y")
         end_date = last_sunday.strftime("%d %b %Y")
         datequery = f"date range is from {start_date} to {end_date}"
-    elif "this week" in question.lower():
+    elif "this week" in question.lower() or "current week" in question.lower():
         this_monday = now - timedelta(days=now.weekday())
         this_sunday = this_monday + timedelta(days=6)
         start_date = this_monday.strftime("%d %b %Y")
         end_date = this_sunday.strftime("%d %b %Y")
         datequery = f"date range is from {start_date} to {end_date}"
-    elif "this month" in question.lower():
-        this_month_start = date(now.year, now.month, 1)
-        next_month = now.month + 1 if now.month < 12 else 1
-        next_year = now.year if now.month < 12 else now.year + 1
-        this_month_end = date(next_year, next_month, 1) - timedelta(days=1)
-        start_date = this_month_start.strftime("%d %b %Y")
-        end_date = this_month_end.strftime("%d %b %Y")
-        datequery = f"date range is from {start_date} to {end_date}"
-    elif "last month" in question.lower():
+    elif "last month" in question.lower() or "previous month" in question.lower():
         last_month = now.month - 1 if now.month > 1 else 12
         last_year = now.year if now.month > 1 else now.year - 1
         last_month_start = date(last_year, last_month, 1)
@@ -150,7 +142,15 @@ def calendar(question):
         start_date = last_month_start.strftime("%d %b %Y")
         end_date = last_month_end.strftime("%d %b %Y")
         datequery = f"date range is from {start_date} to {end_date}"
-    elif "last year" in question.lower():
+    elif "this month" in question.lower() or "current month" in question.lower():
+        this_month_start = date(now.year, now.month, 1)
+        next_month = now.month + 1 if now.month < 12 else 1
+        next_year = now.year if now.month < 12 else now.year + 1
+        this_month_end = date(next_year, next_month, 1) - timedelta(days=1)
+        start_date = this_month_start.strftime("%d %b %Y")
+        end_date = this_month_end.strftime("%d %b %Y")
+        datequery = f"date range is from {start_date} to {end_date}"
+    elif "last year" in question.lower() or "previous year" in question.lower():
         last_year = now.year - 1
         last_year_start = date(last_year, 1, 1)
         last_year_end = date(last_year, 12, 31)
@@ -160,7 +160,6 @@ def calendar(question):
     else:
         return None
     return datequery
-
 def training_questions(question):
     result = chain_context.invoke(question)
     return result
@@ -213,6 +212,7 @@ if user_prompt is not None and user_prompt != "":
                     query = user_prompt
                 else:
                     query = user_prompt+" " + datequery
+                print(query)
                 result = agent_executor.invoke({"question": query,"speakingtone":speakingtone,"sport":sport})
                 #Check token used:
                 nl = "\n"
