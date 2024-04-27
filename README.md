@@ -4,7 +4,7 @@ Personalised AI sports trainer
 
 ## Demo
 
----- Video to be uploaded ----
+[![Watch the video](https://img.youtube.com/vi/JU1zncaQ6Qc/maxresdefault.jpg)](https://youtu.be/JU1zncaQ6Qc)
 
 ## Built With
 
