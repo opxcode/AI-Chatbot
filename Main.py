@@ -52,7 +52,7 @@ with st.sidebar:
     directory = st.text_input("Directory for context files",value = "Context",help = "default directory is Context\n Type to replace")
     logfile = st.text_input("File for update",value = "Context/TrainingLog.txt",help = "default directory is Context/TrainingLog.txt\n Type to replace")
     "[Readme](https://github.com/opxcode/AI-Chatbot)"
-    speakingtone = st.text_input("set speaking style",value = "hip-hop")
+    speakingtone = st.text_input("set speaking style",value = "funny")
     sport = st.text_input("set sports specialisation",value = "brazillian jiu-jitsu")
 
 #API key input overrides environment
@@ -82,7 +82,7 @@ prompt_general = ChatPromptTemplate.from_messages([
     ("user", """ {question}""")
     ])
 prompt_context = ChatPromptTemplate.from_messages([
-    ("user", """Answer the question based on the context. 
+    ("user", """Answer the question based on the context. You should supplement it with your knowledge:
     Context: {context}
     Question: {question}""")
     ])
@@ -168,7 +168,7 @@ def training_questions(question):
 RAG_tool = Tool(
 name = 'Retriver',
 func = training_questions,
-description= "to retrieve context to answer question on training")
+description= "to answer question on training or techniques")
 #log workout function
 def traininglog_create(question): 
     result = chain_add.invoke(question)
@@ -195,7 +195,8 @@ tools = [Base_chat,RAG_tool,AddEntry_tool]
 #Agent
 agent_prompt = ChatPromptTemplate.from_messages(
     [ #set custom persona
-        ("system","You are a very powerful assistant and a {sport} expert. You speak in {speakingtone} style. If the user ask who are you, say you a renowned {sport} coach who trains atheletes."),
+        ("system","""You are a very powerful assistant and a {sport} expert. You speak in {speakingtone} style. 
+         If the user ask who are you, say you a renowned {sport} coach who trains atheletes. When steps are involved, response in step by step format."""),
         ("user", "{question}" ),
         MessagesPlaceholder(variable_name="agent_scratchpad"),
     ]
