@@ -36,7 +36,6 @@ OpenAI llm, Python, Streamlit
 4. To run app locally:<br>
    (In Terminal): streamlit run Main.py<br>
 
----- Video to be uploaded ----
 
 ## User/Technical Flow Chart
 
