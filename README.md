@@ -11,12 +11,13 @@ Personalised AI sports trainer
 OpenAI llm, Python, Streamlit
 
 ## Features
+
 - General ask and answer
 - Record workout entry
 - Answer questions from workout logs, training related data
 - Custom persona:
-   * sports specialty
-   * speaking style
+  - sports specialty
+  - speaking style
 
 ## Requirements:
 
@@ -36,7 +37,26 @@ OpenAI llm, Python, Streamlit
 4. To run app locally:<br>
    (In Terminal): streamlit run Main.py<br>
 
-
 ## User/Technical Flow Chart
 
 https://www.figma.com/file/nJ8bhalNFvyOFGvDFpSP09/AI-Chatbot-Flow-Chart?type=whiteboard
+
+## Roadmap
+
+### Completed
+
+- Base Version build with langchain agent, and RAG function [27 Apr 2024]:
+  - Feature:
+    - ask and answer
+    - retrieve from context
+    - update file with formatted entry
+  - Customisation on FrontEnd:
+    - Input API Key
+    - Input context file paths
+    - Speaking Tone
+    - Sports Expertise
+
+### Upcoming
+
+- Improve agent function
+- Add other llm models
