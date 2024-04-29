@@ -114,6 +114,9 @@ Base_chat = Tool(
 )
 
 
+def training_questions(question):
+    result = chain_context.invoke(question)
+    return result
 
 RAG_tool = Tool(
 name = 'Retriver',
@@ -158,7 +161,7 @@ if user_prompt is not None and user_prompt != "":
     try:
         if api_key != None:
             with get_openai_callback() as cb:
-                datequery = CustomFunction.calendar(user_prompt)
+                datequery = CustomFunction.CustomFunction.calendar(user_prompt)
                 if datequery is None:
                     query = user_prompt
                 else:
