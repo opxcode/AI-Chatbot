@@ -46,6 +46,3 @@ def calendar(question):
     else:
         return None
     return datequery
-def training_questions(question):
-    result = chain_context.invoke(question)
-    return result
