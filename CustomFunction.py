@@ -1,4 +1,6 @@
 #define date function AI does not have calendar
+
+from datetime import date,timedelta
 def calendar(question):
     now = date.today()
     if "today" in question.lower():

@@ -9,11 +9,21 @@ from langchain_community.document_loaders import DirectoryLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import DocArrayInMemorySearch
-from langchain.tools.retriever import Tool
+from langchain.tools import tool
 from langchain.agents import AgentExecutor, create_openai_tools_agent
 from datetime import date,timedelta
 import streamlit as st
-import CustomFunction
+import customfunction
+from typing import TypedDict, Annotated, Sequence
+import operator
+from langchain_core.messages import BaseMessage,FunctionMessage,HumanMessage,SystemMessage
+from langchain_core.utils.function_calling import convert_to_openai_function,format_tool_to_openai_function
+from langgraph.prebuilt.tool_executor import ToolExecutor, ToolInvocation
+from langchain.output_parsers.openai_functions import JsonOutputFunctionsParser
+import functools
+import json
+from langgraph.graph import StateGraph, END
+
 
 #Streamlit
 st.set_page_config(page_title="Personal Assistant", page_icon= "🤖")
@@ -65,23 +75,36 @@ if not api_key:
 
 llm = ChatOpenAI(api_key = api_key,model="gpt-3.5-turbo",temperature= 0.7)
 
-#Context file supports only text files
-loader = DirectoryLoader(directory, glob="**/*.txt",loader_cls=TextLoader)
-docs = loader.load()
 #Split text into chunks
 text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=20)
-documents = text_splitter.split_documents(docs)
-
-#intialize vector store
 embeddings_model = OpenAIEmbeddings(api_key = api_key,model="text-embedding-3-small")
-vectorstore = DocArrayInMemorySearch.from_documents(documents, embeddings_model)
 
-embeddings = {"context": vectorstore.as_retriever(), "question": RunnablePassthrough()}
+#Context file supports only text files
+technique_loader = TextLoader("Context/Techniques.txt")
+technique_docs = technique_loader.load()
+technique_documents = text_splitter.split_documents(technique_docs)
+#intialize vector store
+technique_vectorstore = DocArrayInMemorySearch.from_documents(technique_documents, embeddings_model)
+technique_embeddings = {"context": technique_vectorstore.as_retriever(), "question": RunnablePassthrough()}
+
+#Context file supports only text files
+training_loader = TextLoader("Context/TrainingLog.txt")
+training_docs = training_loader.load()
+training_documents = text_splitter.split_documents(training_docs)
+#intialize vector store
+training_vectorstore = DocArrayInMemorySearch.from_documents(training_documents, embeddings_model)
+training_embeddings = {"context": training_vectorstore.as_retriever(), "question": RunnablePassthrough()}
+
+#Context file supports only text files
+goals_loader = TextLoader("Context/Goals.txt")
+goals_docs = goals_loader.load()
+goals_documents = text_splitter.split_documents(goals_docs)
+#intialize vector store
+goals_vectorstore = DocArrayInMemorySearch.from_documents(goals_documents, embeddings_model)
+goals_embeddings = {"context": goals_vectorstore.as_retriever(), "question": RunnablePassthrough()}
 
 #Prompt Templates
-prompt_general = ChatPromptTemplate.from_messages([ 
-    ("user", """ {question}""")
-    ])
+
 prompt_context = ChatPromptTemplate.from_messages([
     ("user", """Answer the question based on the context. You should supplement it with your knowledge:
     Context: {context}
@@ -92,86 +115,171 @@ prompt_add = ChatPromptTemplate.from_messages([
     ("user", """From the given text, input the date in the format "DD MMM YYYY" followed by bullet points of what was done
     Text: {question}""")
     ])
-#Chain
-chain_general = (
-    prompt_general
-    | llm
-)
-chain_context = (
-    embeddings
+prompt_persona = ChatPromptTemplate.from_messages([
+    SystemMessage(content=f"""You are a {sport} expert. Respond in {speakingtone} style. If response involve steps, return it bullet format."""),
+    MessagesPlaceholder(variable_name="messages"),
+])
+#Chain 
+
+technique_context = (
+    technique_embeddings
     |prompt_context
     | llm
 )
+training_context = (
+    training_embeddings
+    |prompt_context
+    | llm
+)
+goal_context = (
+    goals_embeddings
+    |prompt_context
+    | llm
+)
+
 chain_add = (
     prompt_add
     | llm
 )
 #Tools
-Base_chat = Tool(
-    name = 'General',
-    func = chain_general.invoke,
-    description= "all other questions"
+
+@tool
+def technique_retriever(query) -> str:
+    """Retrieve notes on techniques"""
+    response = technique_context.invoke(query)
+    return response.content
+@tool
+def training_retriever(query) -> str:
+    """Retrieve training details"""
+    response = training_context.invoke(query)
+    return response.content
+@tool
+def goal_retriever(query) -> str:
+    """Retrieve goals"""
+    response = goal_context.invoke(query)
+    return response.content
+
+tools = [technique_retriever,training_retriever,goal_retriever]
+functions = [convert_to_openai_function(t) for t in tools]
+llm = llm.bind_functions(functions)
+chain_persona = (
+    prompt_persona
+    |llm
+)
+tool_executor = ToolExecutor(tools)
+
+class AgentState(TypedDict):
+    messages: Annotated[Sequence[BaseMessage], operator.add]
+
+def should_continue(state):
+    messages = state['messages']
+    last_message = messages[-1]
+    # If there is no function call, then we finish
+    if "function_call" not in last_message.additional_kwargs:
+        return "end"
+    # Otherwise if there is, we continue
+    else:
+        return "continue"
+
+# Define the function that calls the model
+def call_model(state):
+    messages = state['messages']
+    print(messages)
+    response = chain_persona.invoke(messages)
+    # We return a list, because this will get added to the existing list
+    print("___callmode___")
+    print(response)
+    print("_____")
+    return {"messages": [response]}
+
+# Define the function to execute tools
+def call_tool(state):
+    messages = state['messages']
+    # Based on the continue condition
+    # we know the last message involves a function call
+    last_message = messages[-1]
+    # We construct an ToolInvocation from the function_call
+    action = ToolInvocation(
+        tool=last_message.additional_kwargs["function_call"]["name"],
+        tool_input=json.loads(last_message.additional_kwargs["function_call"]["arguments"]),
+    )
+    print("___agent action___")
+    print(action)
+    # We call the tool_executor and get back a response
+    response = tool_executor.invoke(action)
+    print("___tool result___")
+    print(response)
+    # We use the response to create a FunctionMessage
+    function_message = FunctionMessage(content=str(response), name=action.tool)
+    # We return a list, because this will get added to the existing list
+    return {"messages": [function_message]}
+workflow = StateGraph(AgentState)
+
+# Define the two nodes we will cycle between
+workflow.add_node("agent", call_model)
+workflow.add_node("action", call_tool)
+
+# Set the entrypoint as `agent` where we start
+workflow.set_entry_point("agent")
+
+# We now add a conditional edge
+workflow.add_conditional_edges(
+    # First, we define the start node. We use `agent`.
+    # This means these are the edges taken after the `agent` node is called.
+    "agent",
+    # Next, we pass in the function that will determine which node is called next.
+    should_continue,
+    # Finally we pass in a mapping.
+    # The keys are strings, and the values are other nodes.
+    # END is a special node marking that the graph should finish.
+    # What will happen is we will call `should_continue`, and then the output of that
+    # will be matched against the keys in this mapping.
+    # Based on which one it matches, that node will then be called.
+    {
+        # If `tools`, then we call the tool node.
+        "continue": "action",
+        # Otherwise we finish.
+        "end": END
+    }
 )
 
+# We now add a normal edge from `tools` to `agent`.
+# This means that after `tools` is called, `agent` node is called next.
+workflow.add_edge('action', 'agent')
 
-def training_questions(question):
-    result = chain_context.invoke(question)
-    return result
+# Finally, we compile it!
+# This compiles it into a LangChain Runnable,
+# meaning you can use it as you would any other runnable
+app = workflow.compile()
 
-RAG_tool = Tool(
-name = 'Retriver',
-func = training_questions,
-description= "to answer question on training or techniques")
-#log workout function
-def traininglog_create(question): 
-    result = chain_add.invoke(question)
-    """
-    Writes the provided data to the specified text file.
-
-    Args:
-        filename (str): The name or path of the text file.
-        data (str): The data to be written to the file.
-    """
-    data = result.content
-    filename = logfile
-    f = open(filename, "a")
-    f.write("\n"+data)
-    f.close()
-
-AddEntry_tool = Tool(
-    name = 'AddEntry',
-    func = traininglog_create,
-    description= "to add entry to training log"
-)
-tools = [Base_chat,RAG_tool,AddEntry_tool]
-
-#Agent
-agent_prompt = ChatPromptTemplate.from_messages(
-    [ #set custom persona
-        ("system","""You are a very powerful assistant and a {sport} expert. You speak in {speakingtone} style. 
-         If the user ask who are you, say you a renowned {sport} coach who trains atheletes. When steps are involved, response in step by step format."""),
-        ("user", "{question}" ),
-        MessagesPlaceholder(variable_name="agent_scratchpad"),
-    ]
-)
-agent = create_openai_tools_agent(llm, tools, agent_prompt)
-agent_executor = AgentExecutor(agent=agent, tools=tools, verbose = True, max_iterations=3)
 
 if user_prompt is not None and user_prompt != "":
     try:
         if api_key != None:
             with get_openai_callback() as cb:
-                datequery = CustomFunction.CustomFunction.calendar(user_prompt)
+                datequery = customfunction.calendar(user_prompt)
                 if datequery is None:
                     query = user_prompt
+                    inputs = {"messages": [HumanMessage(content=query)]}
                 else:
                     query = user_prompt+" " + datequery
-                print(query)
-                result = agent_executor.invoke({"question": query,"speakingtone":speakingtone,"sport":sport})
+                    inputs = {"messages": [HumanMessage(content=query)]}
+                # for output in app.stream(inputs):
+                #     #stream() yields dictionaries with output keyed by node name
+                #     for key, value in output.items():
+                #         print(f"Output from node '{key}':")
+                #         print("---")
+                #         print(value)
+                #     print("\n---\n")
+                result = app.invoke(inputs)
+                print("___Final result___")
+                print(result)
+             
                 #Check token used:
                 nl = "\n"
                 token_usage = f"Total Tokens: {cb.total_tokens}{nl}Total Cost (USD): ${cb.total_cost:.8f}"
-            st.session_state.chat_history.append({"user":user_prompt,"assistant":result["output"],"token_usage":token_usage})
+            st.session_state.chat_history.append({"user":user_prompt,"assistant":result['messages'][-1].content,"token_usage":token_usage})
+
         else:
             st.session_state.chat_history.append({"user":user_prompt,"assistant":"Please input API key or setup in environment","token_usage":""})
     except Exception as e:
@@ -182,7 +290,3 @@ for msg in st.session_state.chat_history:
    st.chat_message(name = "token_usage", avatar = "💎" ).write(msg["token_usage"])
    st.chat_message("user").write(msg["user"])
    st.chat_message("assistant").write(msg["assistant"])
-
-
-
-
