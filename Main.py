@@ -133,66 +133,23 @@ prompt_persona = ChatPromptTemplate.from_messages([
     MessagesPlaceholder(variable_name="messages"),
 ])
 
-prompt_performance = ChatPromptTemplate.from_messages([
-    SystemMessage("""You analyse performance on trainings, please decide what tools you may need to retrieve the relevant information.
-                  You may need more than 1 tool, you may need to retrieve the training details to do an anlaysis, identify the good or bad and suggest recommendation to improve. 
-                In the recommendation you may need to retrieve from notes on techniques to supplement your answer or use retrieve the goals to identify the gaps from training results. """),
-    MessagesPlaceholder(variable_name="messages"),
-])
 #Chain 
 chain_context = (
     embeddings
     |prompt_context
     | llm
 )
-
-technique_context = (
-    technique_embeddings
-    |prompt_context
-    | llm
-)
-training_context = (
-    training_embeddings
-    |prompt_context
-    | llm
-)
-goal_context = (
-    goals_embeddings
-    |prompt_context
-    | llm
-)
-
 chain_add = (
     prompt_add
     | llm
 )
-chain_analysis = (
-    prompt_performance
-    |llm
-)
+
 #Tools
 
 @tool
 def retriever(query) -> str:
     """Retrieve data to answer training related questions"""
     response = chain_context.invoke(query)
-    return response.content
-
-
-@tool
-def technique_retriever(query) -> str:
-    """Retrieve notes on techniques"""
-    response = technique_context.invoke(query)
-    return response.content
-@tool
-def training_retriever(query) -> str:
-    """Retrieve training details"""
-    response = training_context.invoke(query)
-    return response.content
-@tool
-def goal_retriever(query) -> str:
-    """Retrieve goals"""
-    response = goal_context.invoke(query)
     return response.content
 
 @tool
@@ -211,11 +168,6 @@ def add_entry(query) -> str:
     f = open(filename, "a")
     f.write("\n"+data)
     f.close()
-@tool
-def performance_analysis(query) -> str:
-    """To do performance analysis """
-    response = chain_analysis.invoke(query)
-    return response.content
 
 tools = [retriever,add_entry]
 functions = [convert_to_openai_function(t) for t in tools]

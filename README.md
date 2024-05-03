@@ -45,18 +45,22 @@ https://www.figma.com/file/nJ8bhalNFvyOFGvDFpSP09/AI-Chatbot-Flow-Chart?type=whi
 
 ### Completed
 
-- Base Version build with langchain agent, and RAG function [27 Apr 2024]:
+- V1.0.0 build with langchain agent, and RAG function [27 Apr 2024]:
   - Feature:
     - ask and answer
     - retrieve from context
-    - update file with formatted entry
+    - write file to add formatted entry
   - Customisation on FrontEnd:
     - Input API Key
     - Input context file paths
     - Speaking Tone
     - Sports Expertise
+- V2.0.0 build with langgraph agent [3 May 2024]:
+  - Improved agent response but uses more token
 
 ### Upcoming
 
-- Improve agent function
+- Improve agent function:
+  - to implement multi agent collaboration
+- Add function to update, delete training log entry
 - Add other llm models
