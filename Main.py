@@ -80,6 +80,15 @@ text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=20
 embeddings_model = OpenAIEmbeddings(api_key = api_key,model="text-embedding-3-small")
 
 #Context file supports only text files
+doc_loader = DirectoryLoader('Context', glob="**/*.txt", loader_cls=TextLoader) 
+docs = doc_loader.load()
+documents = text_splitter.split_documents(docs)
+#intialize vector store
+vectorstore = DocArrayInMemorySearch.from_documents(documents, embeddings_model)
+embeddings = {"context": vectorstore.as_retriever(), "question": RunnablePassthrough()}
+
+
+#Context file supports only text files
 technique_loader = TextLoader("Context/Techniques.txt")
 technique_docs = technique_loader.load()
 technique_documents = text_splitter.split_documents(technique_docs)
@@ -117,7 +126,10 @@ prompt_add = ChatPromptTemplate.from_messages([
     ])
 prompt_persona = ChatPromptTemplate.from_messages([
     SystemMessage(content=f"""You are a {sport} expert. Respond in {speakingtone} style. 
-                  If response involve steps, return it bullet format. """),
+                  If response involve steps, return it bullet format. When asked on what to do or how to do, suggest techniques.
+                   Any questions regarding training or techniques , use the retriever tool.
+                When analysing performance, identify the good or bad and suggest recommendation to improve.
+                 """),
     MessagesPlaceholder(variable_name="messages"),
 ])
 
@@ -125,9 +137,14 @@ prompt_performance = ChatPromptTemplate.from_messages([
     SystemMessage("""You analyse performance on trainings, please decide what tools you may need to retrieve the relevant information.
                   You may need more than 1 tool, you may need to retrieve the training details to do an anlaysis, identify the good or bad and suggest recommendation to improve. 
                 In the recommendation you may need to retrieve from notes on techniques to supplement your answer or use retrieve the goals to identify the gaps from training results. """),
-    "user", "{question}"
+    MessagesPlaceholder(variable_name="messages"),
 ])
 #Chain 
+chain_context = (
+    embeddings
+    |prompt_context
+    | llm
+)
 
 technique_context = (
     technique_embeddings
@@ -154,6 +171,13 @@ chain_analysis = (
     |llm
 )
 #Tools
+
+@tool
+def retriever(query) -> str:
+    """Retrieve data to answer training related questions"""
+    response = chain_context.invoke(query)
+    return response.content
+
 
 @tool
 def technique_retriever(query) -> str:
@@ -187,14 +211,13 @@ def add_entry(query) -> str:
     f = open(filename, "a")
     f.write("\n"+data)
     f.close()
-
 @tool
 def performance_analysis(query) -> str:
-    """To do perfomance analysis on training and recommend training """
+    """To do performance analysis """
     response = chain_analysis.invoke(query)
     return response.content
 
-tools = [technique_retriever,training_retriever,goal_retriever,add_entry,performance_analysis]
+tools = [retriever,add_entry]
 functions = [convert_to_openai_function(t) for t in tools]
 llm = llm.bind_functions(functions)
 chain_persona = (
@@ -286,7 +309,6 @@ workflow.add_edge('action', 'agent')
 # This compiles it into a LangChain Runnable,
 # meaning you can use it as you would any other runnable
 app = workflow.compile()
-
 
 if user_prompt is not None and user_prompt != "":
     try:
